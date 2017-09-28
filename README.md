@@ -17,9 +17,9 @@ roslaunch ros_robotics ddrobot_gazebo.launch
 
 ## Commands to run Homework 02:
 
-source devel/setup.bash
-rosrun beginner_tutorials talker
-rosrun beginner_tutorials listener
+'source devel/setup.bash'
+'rosrun beginner_tutorials talker'
+'rosrun beginner_tutorials listener'
 
 
 cd bagfiles
