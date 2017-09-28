@@ -31,8 +31,8 @@ roslaunch ros_robotics ddrobot_gazebo.launch
 	`rosbaplay subset.bag`
 
 
-rosrun beginner_tutorials talker
-rosrun beginner_tutorials reverser
-rostopic echo /rchatter 
+	rosrun beginner_tutorials talker
+	rosrun beginner_tutorials reverser
+	rostopic echo /rchatter 
 
 
