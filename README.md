@@ -36,3 +36,9 @@ catkin_make
 	rostopic echo /rchatter 
 
 
+## Commands to run Homework 03:
+
+rosrun homework03 wheelSpeed
+rostopic pub /cmd_vel geometry_msgs/Twist "{linear:  {x: 1.4,  y: 0.0,  z: 0.0}, angular:  {x: 0.0,  y: 0.0,  z: 0.0}}" 
+
+rostopic pub /input homework03/Input "{x: 1.0, y: 0.0, theta: 0.0, ticksL: 16.0, ticksR: 16.0}"
