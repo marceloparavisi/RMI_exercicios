@@ -1,13 +1,15 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Pose2D.h"
 #include "geometry_msgs/Twist.h"
-#include <nav_msgs/Odometry>
+#include <nav_msgs/Odometry.h>
 #include <math.h>
+#include <tf/tf.h>
+
 
 
 
 std::vector<geometry_msgs::Pose2D> pointsVector;
-
+geometry_msgs::Pose2D odom;
 
 
 void setPoint(const geometry_msgs::Pose2D::ConstPtr& msg)
@@ -23,8 +25,15 @@ void setPoint(const geometry_msgs::Pose2D::ConstPtr& msg)
 
 void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
-	ROS_INFO("GOT ODOM: position (%f, %f, %f) orient: %f, %f, %f)", msg->pose->pose->position.x,msg->pose->pose->position.y, msg->pose->pose->position.z,  msg->pose->pose->orientation.x,msg->pose->pose->orientation.y, msg->pose->pose->orientation.z, msg->pose->pose->orientation.w);  
-
+	//ROS_INFO("GOT ODOM: position (%f, %f, %f) orient: %f, %f, %f)", msg->pose.pose.position.x,msg->pose.pose.position.y, msg->pose.pose.position.z,  msg->pose.pose.orientation.x,msg->pose.pose.orientation.y, msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);  
+	odom.x = msg->pose.pose.position.x;
+	odom.y = msg->pose.pose.position.y;
+	tf::Quaternion q(msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
+	tf::Matrix3x3 mat(q);
+	double roll, pitch, yaw;
+	mat.getRPY(roll, pitch, yaw);
+	odom.theta = yaw;
+	//ROS_INFO("yaw: %f",yaw);
 }
 
 
@@ -94,18 +103,58 @@ int main(int argc, char **argv)
 	// 1- ler topico e armazenar numa fila de pose
 	ros::Subscriber sub = n.subscribe("setPoint", 10, setPoint);
 	// 2- ler /odom
-	ros::Subscriber sub2 = n.subscribe("input", 1, odometryCallback);
+	ros::Subscriber sub2 = n.subscribe("odom", 1, odometryCallback);
 
-	ros::spin();
+	ros::Publisher commandsTwist = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/safety_controller", 1);
+
+        ros::Rate loop_rate(10);
 
 	while(ros::ok())
 	{
+		ROS_INFO(" Vector: %d", pointsVector.size());
+		if (pointsVector.size() > 0)
+		{
+			double rot1 = atan2(pointsVector[0].y-odom.y, pointsVector[0].x-odom.x)-odom.theta;
+			double dist = sqrt ((pointsVector[0].x-odom.x)*(pointsVector[0].x-odom.x) + (pointsVector[0].y-odom.y)*(pointsVector[0].y-odom.y));
+			int multAngle = rot1 / 0.06;
+ROS_INFO(" p(%f, %f) odom(%f,%f)",pointsVector[0].x, pointsVector[0].y,odom.x,odom.y);
+ROS_INFO("ROT1: %f odom.theta: %f m: %d dist: %f", rot1, odom.theta,  multAngle, dist);
+			if ((multAngle == 0) || (dist < 0.1))
+			{
+				if (dist > 0.2)
+					dist = 0.2;
+				else if (dist > 0.1)
+					dist = 0.1;
+				else
+				{
+					dist = 0;
+					double rot2 = pointsVector[0].theta - odom.theta;
+					multAngle = rot2 / 0.06;
+ROS_INFO("rot2: %f m2: %d ", rot2, multAngle);
+					if (multAngle == 0)
+						pointsVector.erase(pointsVector.begin());
+				}
+			}
+			else
+				dist = 0;
+			if (multAngle > 5)
+				multAngle = 5;
+			
+			geometry_msgs::Twist cmd;
+			cmd.linear.x = dist; 
+			cmd.linear.y = 0; 
+			cmd.linear.z = 0; 
+			cmd.angular.x = 0; 
+			cmd.angular.y = 0; 
+			cmd.angular.z = 0.1*multAngle; 
 
-		
-		// 3- aplicar rot1
-		// 4- aplicar trans1
-		// 5- aplicar rot2
-		// 6- se chegou no destino, remove da fila de pose
+			commandsTwist.publish(cmd);
+						
+			// 3- aplicar rot1
+			// 4- aplicar trans1
+			// 5- aplicar rot2
+			// 6- se chegou no destino, remove da fila de pose
+		}
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
