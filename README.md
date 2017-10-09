@@ -42,7 +42,7 @@ catkin_make
 	rostopic pub /cmd_vel geometry_msgs/Twist "{linear:  {x: 1.4,  y: 0.0,  z: 0.0}, angular:  {x: 0.0,  y: 0.0,  z: 0.0}}" 
 	rostopic pub /input homework03/Input "{x: 1.0, y: 0.0, theta: 0.0, ticksL: 16.0, ticksR: 16.0}"
 
-## Commands to run Homework 04:
+## Commands to run Homework 03 B:
 
 	roslaunch mybot_gazebo mybot_world.launch
 	roslaunch mybot_description mybot_rviz.launch
@@ -52,3 +52,15 @@ catkin_make
 
 	roslaunch tortoisebot tortoisebot.launch 
 	rviz src/tortoisebot/rviz/basic.rviz
+
+
+## Commands to run Homework 04:
+
+	roslaunch turtlebot_gazebo turtlebot_world.launch
+	rosrun homework04 homework04 
+	rostopic pub /setPoint geometry_msgs/Pose2D '{x: 1.0, y: 0.0, theta: 0.0}'
+	rostopic pub /setPoint geometry_msgs/Pose2D '{x: 1.0, y: 2.0, theta: 1.57}'
+	rostopic pub /setPoint geometry_msgs/Pose2D '{x: -1.0, y: 2.0, theta: 3.14}'
+	rostopic pub /setPoint geometry_msgs/Pose2D '{x: -1.0, y: 0.0, theta: 0.0}'
+	
+

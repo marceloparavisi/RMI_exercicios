@@ -17,7 +17,7 @@ function c()
 
 function d()
 {
-	/opt/ros/kinetic/bin/rostopic pub /setPoint geometry_msgs/Pose2D '{x: -1.0, y: 0.0, theta: 0.0}'
+	/opt/ros/kinetic/bin/rostopic pub /setPoint geometry_msgs/Pose2D '{x: -1.0, y: 0.0, theta: 0.0}'ros
 }
 
 timeout 0.2s cat <( a )
