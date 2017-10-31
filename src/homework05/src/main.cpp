@@ -14,6 +14,12 @@ std::vector<geometry_msgs::Pose2D> pointsVector;
 geometry_msgs::Pose2D odom;
 sensor_msgs::LaserScan laser;
 bool desviando = false;
+int lim = 100;
+
+time_t timer;
+time_t timer2;
+struct tm y2k = {0};
+double seconds;
 
 void setPoint(const geometry_msgs::Pose2D::ConstPtr& msg)
 {
@@ -170,42 +176,50 @@ ROS_INFO("rot2: %f m2: %d ", rot2, multAngle);
 			cmd.angular.z = 0.1*multAngle; 
 
 			commandsTwist.publish(cmd);
-
            
             float high = 100000;
 
-            for(int i = 10; i < laser.ranges.size()-10; i++){
+            for(int i = lim; i < laser.ranges.size()-lim; i++){
                  high = std::min(high, float(laser.ranges[i]));
             }
-           
-            if(high < 1.5 && !desviando){
-                // para o robo
-                geometry_msgs::Twist cmd;
-			    cmd.linear.x = 0; 
-			    cmd.linear.y = 0; 
-			    cmd.linear.z = 0; 
-			    cmd.angular.x = 0; 
-			    cmd.angular.y = 0; 
-			    cmd.angular.z = 0; 
-
-		        commandsTwist.publish(cmd);
-
-                geometry_msgs::Pose2D p;
-                p.x = pointsVector[0].x + 1;
-                p.y = pointsVector[0].y;
-                p.theta = pointsVector[0].theta;
-                pointsVector.insert(pointsVector.begin(), p);
-
-                //gira alguns graus
-                p.x = pointsVector[0].x;
-                p.y = pointsVector[0].y;
-                p.theta = pointsVector[0].theta + 0.5;
-                pointsVector.insert(pointsVector.begin(), p);
-                ROS_INFO(" new point addeed (OOOOOOOOOOOOOOOOOOOOOOOOOOOBS_AVOIDANCE): (%f, %f, %f )", p.x, p.y, p.theta);
+            
+            if (high < 1.5){
                 desviando = true;
+                geometry_msgs::Twist cmd;
+
+                time(&timer);
+                timer2 = timer;
+
+                while(difftime(timer, timer2) < 0.8){
+                    //rotaciona
+                    cmd.linear.x = 0; 
+                    cmd.linear.y = 0; 
+                    cmd.linear.z = 0; 
+                    cmd.angular.x = 0; 
+                    cmd.angular.y = 0; 
+                    cmd.angular.z = 0.2; 
+
+                    commandsTwist.publish(cmd);
+                    time(&timer);
+                }
+                
             }
-            if (high >= 1.5){
-                desviando = false;
+            if (high >= 1.5 && desviando){
+                time(&timer);
+                timer2 = timer;
+                while(difftime(timer, timer2) < 1){
+                    //rotaciona
+                    cmd.linear.x = 0.2; 
+                    cmd.linear.y = 0; 
+                    cmd.linear.z = 0; 
+                    cmd.angular.x = 0; 
+                    cmd.angular.y = 0; 
+                    cmd.angular.z = 0; 
+
+                    commandsTwist.publish(cmd);
+                    time(&timer);
+                }
+              desviando = false;  
             }
             ROS_INFO("min_distance: %f, %d", high, desviando);
 						
