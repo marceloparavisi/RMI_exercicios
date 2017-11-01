@@ -63,4 +63,17 @@ catkin_make
 	rostopic pub /setPoint geometry_msgs/Pose2D '{x: -1.0, y: 2.0, theta: 3.14}'
 	rostopic pub /setPoint geometry_msgs/Pose2D '{x: -1.0, y: 0.0, theta: 0.0}'
 	
+## Commands to run Homework 05 (Obstacle avoidance):
+	roslaunch turtlebot_gazebo turtlebot_world.launch
+	rosrun homework05 homework05 
+	rostopic pub /setPoint geometry_msgs/Pose2D '{x: 0.0, y: 4.0, theta: 0.0}'
+
+## Commands to run Homework 06 (HMMI):
+	roslaunch turtlebot_gazebo turtlebot_world.launch
+	rosrun homework06 homework06 
+	roslaunch turtlebot_teleop keyboard_teleop.launch
+	rviz hmmi.rviz
+
+
+
 

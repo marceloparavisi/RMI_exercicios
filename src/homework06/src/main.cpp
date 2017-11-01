@@ -26,21 +26,7 @@ double seconds;
 float resolution = 0.1;
 int width = 100;
 int height = 100;
-int deslX = 5;
-int deslY = 5;
 int data[10000];
-std::mutex mutex;
-
-void setPoint(const geometry_msgs::Pose2D::ConstPtr& msg)
-{
-	geometry_msgs::Pose2D p;
-	p.x = msg->x;
-	p.y = msg->y;
-	p.theta = msg->theta;
-	pointsVector.push_back(p);
-
-	ROS_INFO(" new point addeed: (%f, %f, %f )", p.x, p.y, p.theta);
-}
 
 void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
@@ -53,31 +39,6 @@ void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
 	mat.getRPY(roll, pitch, yaw);
 	odom.theta = yaw;
 	//ROS_INFO("yaw: %f",yaw);
-}
-
-
-void commandCallback(const geometry_msgs::Twist::ConstPtr& msg)
-{
-  double linearX = msg->linear.x;
-  double linearY = msg->linear.y;
-  double linearZ = msg->linear.z;
-
-  double angularX = msg->angular.x; // drop
-  double angularY = msg->angular.y; // drop
-  double angularZ = msg->angular.z;
-
-  //ROS_INFO("Linear Speed: [%f, %f, %f] angular: [%f, %f, %f] ", linearX, linearY, linearZ, angularX, angularY, angularZ);
-
-
-  double L = 1;
-  double R = 0.1;
-
-  double w = angularZ;
-
-  double v  = std::sqrt(linearX*linearX+linearY*linearY);
-  double vl = (2*v-w*L)/(2*R);
-  double vr = (2*v+w*L)/(2*R);
-  ROS_INFO(" vl: %f   vr: %f", vl, vr);
 }
 
 
@@ -103,16 +64,78 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 
 	if (msg->ranges.size() > 0)
 	{
-		for(unsigned long i = 0; i < msg->ranges.size(); i++){
+		/*for (int x = 0; x < width; x++)
+			for (int y = 0; y < height; y++)
+			{
+				data[x*width+y]=0;
+			}//*/
+		int menorX = 10000;
+		int maiorX = -10000;
+		int menorY = 10000;
+		int maiorY = -10000;
+		float menorAng = 10000;
+		float maiorAng = -1000;
 
-			ROS_INFO(" i: %d/%lu dist: %f", i, msg->ranges.size(), msg->ranges[i]);
+
+		int fromX = int(odom.x/resolution); 
+		int fromY = int(odom.y/resolution);
+		for (int x = 0; x < width; x++)
+		for (int y = 0; y < height; y++)
+		{
 			tf::Vector3 v(1,0,0);
 			tf::Quaternion q;
+			q.setRotation(tf::Vector3(0,0,1), odom.theta);
+			v = tf::quatRotate(q,v);
+			tf::Vector3 target(x-fromX, y-fromY,0);
+			float dist = target.distance(tf::Vector3(0,0,0));
+			float angle = v.dot(target)/dist;
+			
+//			if (dist < 5 )//&& angle > (odom.theta+msg->angle_min) && angle < (odom.theta+msg->angle_max))
+			if (dist < 15 && angle > (msg->angle_max) && angle >0) //angle > (msg->angle_min) )
+			{
+				ROS_INFO("%f angle: %f %f %f",dist, (msg->angle_min), angle, (msg->angle_max));
+				if (data[y*width+x] > 0)
+					data[y*width+x]=data[y*width+x]-1;
+			}
+	//		else
+	//			data[y*width+x]=0;
+		}
+		for(unsigned long i = 0; i < msg->ranges.size(); i++)
+		if(msg->ranges[i]<10)		
+		{
+
+
+			
+			//ROS_INFO(" i: %d/%lu dist: %f", i, msg->ranges.size(), msg->ranges[i]);
+			tf::Vector3 v(msg->ranges[i],0,0);
+			tf::Quaternion q;
+			if (menorAng > (odom.theta+msg->angle_min+i*msg->angle_increment))
+				menorAng = odom.theta+msg->angle_min+i*msg->angle_increment; 
+			if (maiorAng < (odom.theta+msg->angle_min+i*msg->angle_increment))
+				maiorAng = odom.theta+msg->angle_min+i*msg->angle_increment;
 			q.setRotation(tf::Vector3(0,0,1), odom.theta+msg->angle_min+i*msg->angle_increment);
 			tf::Vector3 target = tf::quatRotate(q, v)+tf::Vector3(odom.x,odom.y,0);
-			ROS_INFO("i: %d target: %f, %f", i, target.x(), target.y());
-			data[int(target.x()*width+target.y())]=255;
+//			tf::Vector3 target = tf::quatRotate(q, v);
+
+			int x = int(target.x()/resolution);
+			int y = int(target.y()/resolution);
+			if (x < menorX) menorX = x;
+			if (x > maiorX) maiorX = x;
+			if (y < menorY) menorY = y;
+			if (y > maiorY) maiorY = y;
+
+			//data[width*y+x]=data[width*y+x]-1;
+			
+			
+			if (x >=0 && y>=0 && x <= width && y <=height)
+			{
+				//ROS_INFO("i: %d target: %d, %d", i, x, y);
+				data[y*width+x]=data[y*width+x]+3;
+				//ROS_INFO(" --");
+			}
 		}
+		ROS_INFO(" X: %d - %d Y: %d - %d", menorX, maiorX, menorY, maiorY);
+		ROS_INFO(" ANG: %f - %f", menorAng, maiorAng);
 		
 	}
 }
@@ -151,14 +174,14 @@ int main(int argc, char **argv)
 
 	ros::NodeHandle n;
 
-	// 1- ler topico e armazenar numa fila de pose
-	ros::Subscriber sub = n.subscribe("setPoint", 10, setPoint);
+
 	// 2- ler /odom
 	ros::Subscriber sub2 = n.subscribe("odom", 1, odometryCallback);
+
     	// inscreve no laser
 	ros::Subscriber sub3 = n.subscribe("scan", 100, laserCallback);
 
-	ros::Publisher commandsTwist = n.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/safety_controller", 1);
+	
 
 	ros::Publisher map_pub = n.advertise<nav_msgs::OccupancyGrid>("hmmi", 1);
 	// inicializa grid com zero
@@ -176,128 +199,31 @@ int main(int argc, char **argv)
 
 
 		ROS_INFO(" Vector: %d", pointsVector.size());
-		if (pointsVector.size() > 0)
+		
+		nav_msgs::OccupancyGrid hmmi;
+		//hmmi.header.seq =; // ????
+		hmmi.header.stamp =ros::Time::now();
+		hmmi.header.frame_id = "odom";
+		hmmi.info.map_load_time=ros::Time::now();
+		hmmi.info.resolution = resolution;
+		hmmi.info.width = width;
+		hmmi.info.height = height;
+		hmmi.info.origin.position.x = 0;
+		hmmi.info.origin.position.y = 0;
+		hmmi.info.origin.position.z = 0;
+		hmmi.info.origin.orientation.x = 0;
+		hmmi.info.origin.orientation.y = 0;
+		hmmi.info.origin.orientation.z = 0;
+		hmmi.info.origin.orientation.w = 1;
+		hmmi.data.resize(width * height);
+		for (int i = 0; i < width*height; i++)
 		{
-			double rot1 = atan2(pointsVector[0].y-odom.y, pointsVector[0].x-odom.x)-odom.theta;
-			double dist = sqrt ((pointsVector[0].x-odom.x)*(pointsVector[0].x-odom.x) + (pointsVector[0].y-odom.y)*(pointsVector[0].y-odom.y));
-			int multAngle = rot1 / 0.06;
-			ROS_INFO(" p(%f, %f) odom(%f,%f)",pointsVector[0].x, pointsVector[0].y,odom.x,odom.y);
-			ROS_INFO("ROT1: %f odom.theta: %f m: %d dist: %f", rot1, odom.theta,  multAngle, dist);
-			if ((multAngle == 0) || (dist < 0.1))
-			{
-				if (dist > 0.2)
-					dist = 0.2;
-				else if (dist > 0.1)
-					dist = 0.1;
-				else
-				{
-					dist = 0;
-					double rot2 = pointsVector[0].theta - odom.theta;
-					multAngle = rot2 / 0.06;
-					ROS_INFO("rot2: %f m2: %d ", rot2, multAngle);
-					if (multAngle == 0)
-						pointsVector.erase(pointsVector.begin());
-				}
-			}
-			else
-				dist = 0;
-			if (multAngle > 5)
-				multAngle = 5;
-			
-			geometry_msgs::Twist cmd;
-			cmd.linear.x = dist; 
-			cmd.linear.y = 0; 
-			cmd.linear.z = 0; 
-			cmd.angular.x = 0; 
-			cmd.angular.y = 0; 
-			cmd.angular.z = 0.1*multAngle; 
-
-			commandsTwist.publish(cmd);
-           
-            		float high = 100000;
-
-			ROS_INFO(" Looking for min distance %d", laser.ranges.size());
-			if (laser.ranges.size() > lim)
-			{
-				for(int i = lim; i < laser.ranges.size()-lim; i++){
-				 	high = std::min(high, float(laser.ranges[i]));
-				}
-			}
-            		ROS_INFO(" min: %f", high);
-			if (high < 1.5)
-			{
-				desviando = true;
-				geometry_msgs::Twist cmd;
-
-				time(&timer);
-				timer2 = timer;
-
-				while(difftime(timer, timer2) < 0.8){
-					//rotaciona
-					cmd.linear.x = 0; 
-					cmd.linear.y = 0; 
-					cmd.linear.z = 0; 
-					cmd.angular.x = 0; 
-					cmd.angular.y = 0; 
-					cmd.angular.z = 0.2; 
-
-					commandsTwist.publish(cmd);
-					time(&timer);
-				}
-
-			}
-			if (high >= 1.5 && desviando){
-				time(&timer);
-				timer2 = timer;
-				while(difftime(timer, timer2) < 1){
-					//rotaciona
-					cmd.linear.x = 0.2; 
-					cmd.linear.y = 0; 
-					cmd.linear.z = 0; 
-					cmd.angular.x = 0; 
-					cmd.angular.y = 0; 
-					cmd.angular.z = 0; 
-
-					commandsTwist.publish(cmd);
-					time(&timer);
-				}
-				desviando = false;  
-			}
-			ROS_INFO("min_distance: %f, %d", high, desviando);
-			nav_msgs::OccupancyGrid hmmi;
-			//hmmi.header.seq =; // ????
-			hmmi.header.stamp =ros::Time::now();
-			hmmi.header.frame_id = "odom";
-			hmmi.info.map_load_time=ros::Time::now();
-			hmmi.info.resolution = resolution;
-			hmmi.info.width = width;
-			hmmi.info.height = height;
-			hmmi.info.origin.position.x = 0;
-			hmmi.info.origin.position.y = 0;
-			hmmi.info.origin.position.z = 0;
-			hmmi.info.origin.orientation.x = 0;
-			hmmi.info.origin.orientation.y = 0;
-			hmmi.info.origin.orientation.z = 0;
-			hmmi.info.origin.orientation.w = 1;
-			hmmi.data.resize(width * height);
-			for (int i = 0; i < width*height; i++)
-			{
-				hmmi.data[i]=data[i];
-			}
-			ROS_INFO("publishing hmmi");
-			map_pub.publish(hmmi);
-			ROS_INFO("done");			
-						
-			// 3- aplicar rot1
-			// 4- aplicar trans1
-			// 5- aplicar rot2
-			// 6- se chegou no destino, remove da fila de pose
-			// pegar info do laser
-			// verificar se na regiao central a distancia e menor que um valor estabelecido
-			// se sim, coloca um ponto correto na fila
-			// anda mais um pouco pra frente
-
+			hmmi.data[i]=data[i];
 		}
+		ROS_INFO("publishing hmmi");
+		map_pub.publish(hmmi);
+		ROS_INFO("done");
+
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
