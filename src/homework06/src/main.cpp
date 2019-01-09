@@ -88,14 +88,20 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 			v = tf::quatRotate(q,v);
 			tf::Vector3 target(x-fromX, y-fromY,0);
 			float dist = target.distance(tf::Vector3(0,0,0));
-			float angle = v.dot(target)/dist;
+			//tf::Vector3 target(x, y, 0);
+			//float dist = target.distance(tf::Vector3(fromX,fromY,0));
+			float angle = acos(v.dot(target)/dist);
 			
 //			if (dist < 5 )//&& angle > (odom.theta+msg->angle_min) && angle < (odom.theta+msg->angle_max))
-			if (dist < 15 && angle > (msg->angle_max) && angle >0) //angle > (msg->angle_min) )
+			if (dist < 15 && angle < (msg->angle_max) && angle >0) //angle > (msg->angle_min) )
 			{
-				ROS_INFO("%f angle: %f %f %f",dist, (msg->angle_min), angle, (msg->angle_max));
-				if (data[y*width+x] > 0)
-					data[y*width+x]=data[y*width+x]-1;
+				ROS_INFO("%f (%d) angle: %f %f %f",dist, data[y*width+x], (msg->angle_min), angle, (msg->angle_max));
+				//if (data[y*width+x] > 0)
+				{
+					
+					//data[y*width+x]=data[y*width+x]-1;
+					//data[y*width+x]=255;
+				}
 			}
 	//		else
 	//			data[y*width+x]=0;
@@ -130,7 +136,8 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 			if (x >=0 && y>=0 && x <= width && y <=height)
 			{
 				//ROS_INFO("i: %d target: %d, %d", i, x, y);
-				data[y*width+x]=data[y*width+x]+3;
+				if (data[y*width+x] <= 52)
+					data[y*width+x]=data[y*width+x]+3;
 				//ROS_INFO(" --");
 			}
 		}
