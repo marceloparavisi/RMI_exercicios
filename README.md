@@ -1,5 +1,7 @@
 
 
+[![Build Status](https://travis-ci.org/marceloparavisi/RMI_exercicios.svg?branch=master)](https://travis-ci.org/marceloparavisi/RMI_exercicios)
+
 ## To compile this project:
 
 catkin_make
